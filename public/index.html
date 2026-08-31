@@ -413,12 +413,12 @@
     position:relative;margin-top:6px;font-family:'Bricolage Grotesque',sans-serif;
     font-size:37px;font-weight:700;color:var(--yellow);letter-spacing:-.01em;
   }
-  .calc-result-bar{position:relative;margin-top:16px;height:7px;border-radius:99px;background:var(--green);overflow:hidden}
+  .calc-result-bar{position:relative;margin-top:16px;height:7px;border-radius:99px;background:#fff;overflow:hidden}
   .calc-result-bar-fill{height:100%;border-radius:99px;background:var(--yellow)}
   .calc-result-split{position:relative;margin-top:14px;display:flex;justify-content:space-between}
   .calc-split-label{font-size:12.5px;color:rgba(255,255,255,0.55)}
   .calc-split-value{margin-top:3px;font-family:'Bricolage Grotesque',sans-serif;font-size:17px;font-weight:700;color:#fff}
-  .calc-split-value.accent{color:var(--green)}
+  .calc-split-value.accent{color:#fff}
 
   /* ---- per-plan detail page: rate table + dual calculator ---- */
   .plan-rate-card{margin-top:18px;background:#fff;border:1px solid rgba(14,31,24,0.07);border-radius:18px;padding:16px;overflow:hidden}
@@ -935,7 +935,7 @@
       </div>
 
       <!-- TODO: replace href with your WhatsApp community invite link -->
-      <a class="community-btn" href="https://wa.me/910000000000" target="_blank" rel="noopener">
+      <a class="community-btn" href="https://chat.whatsapp.com/JivTkbkwZNWHO5z2AAl3Zh" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.39 1.26 4.81L2 22l5.42-1.42a9.87 9.87 0 0 0 4.62 1.18h.01c5.46 0 9.9-4.45 9.9-9.91C21.95 6.45 17.5 2 12.04 2zm0 18.02a8.1 8.1 0 0 1-4.14-1.13l-.3-.18-3.08.81.82-3-.2-.31a8.07 8.07 0 0 1-1.24-4.3c0-4.48 3.65-8.13 8.14-8.13 4.48 0 8.13 3.65 8.13 8.13 0 4.49-3.65 8.11-8.13 8.11zm4.47-6.09c-.24-.12-1.44-.71-1.67-.79-.22-.08-.38-.12-.55.12-.16.24-.63.79-.77.95-.14.16-.28.18-.53.06-.24-.12-1.03-.38-1.96-1.21-.72-.65-1.21-1.44-1.35-1.68-.14-.24-.02-.37.11-.49.11-.11.24-.28.36-.42.12-.14.16-.24.24-.4.08-.16.04-.3-.02-.42-.06-.12-.55-1.32-.75-1.81-.2-.48-.4-.41-.55-.42-.14-.01-.3-.01-.46-.01-.16 0-.42.06-.64.3-.22.24-.85.83-.85 2.02 0 1.19.87 2.34.99 2.5.12.16 1.71 2.61 4.14 3.66.58.25 1.03.4 1.38.51.58.18 1.11.16 1.53.1.47-.07 1.44-.59 1.64-1.16.2-.57.2-1.06.14-1.16-.06-.1-.22-.16-.46-.28z"/></svg>
         <span>Join our community</span>
       </a>
@@ -2466,8 +2466,8 @@
           "There is no Penalty",
           "You will be given your Principal Amount"
         ],
-        tableHeadAapke: 'With You',
-        tableHeadGullak: 'In Gullak',
+        tableHeadAapke: 'Without Gullak',
+        tableHeadGullak: 'With Gullak',
         growthWord: 'growth',
         exampleNote: {
           'Daily Investment Plan': function(){ return "Suppose you kept \u20b9500 daily with yourself for 12 months"; },
