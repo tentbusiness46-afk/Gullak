@@ -20,6 +20,10 @@
     --green-gradient:linear-gradient(135deg,#0E8955 0%,#86AE3C 100%);
   }
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  /* No scrollbars anywhere, so the app looks like a phone app even in a desktop browser.
+     Everything still scrolls (touch, mouse wheel, keyboard) - only the bar itself is hidden. */
+  *{scrollbar-width:none;-ms-overflow-style:none}
+  *::-webkit-scrollbar{display:none;width:0;height:0}
   html,body{height:100%}
   body{
     font-family:'Inter',system-ui,-apple-system,sans-serif;
