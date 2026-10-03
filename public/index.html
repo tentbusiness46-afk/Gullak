@@ -147,14 +147,14 @@
   /* All vertical rhythm here scales with the device's own height via
      clamp(min, vh-preferred, max) instead of fixed px, so a short phone
      gets smaller padding/keys automatically rather than clipping. */
-  #screen-auth,#screen-otp,#screen-language,#screen-wallet-otp{background:var(--green-deep)}
+  #screen-auth,#screen-language,#screen-wallet-otp{background:var(--green-deep)}
   .auth-top{padding:clamp(16px,6.5dvh,78px) 30px 0;flex:none}
   .back-link{font-size:16px;color:rgba(255,255,255,0.6);cursor:pointer;letter-spacing:.02em}
   .auth-heading{
     margin-top:clamp(8px,3.4dvh,30px);font-family:'Bricolage Grotesque',sans-serif;font-weight:700;
     font-size:clamp(22px,3.6dvh,35.5px);line-height:1.15;color:#fff;letter-spacing:-.01em;
   }
-  #screen-otp .auth-heading,#screen-wallet-otp .auth-heading{margin-top:clamp(8px,3dvh,26px)}
+  #screen-wallet-otp .auth-heading{margin-top:clamp(8px,3dvh,26px)}
   .auth-copy{margin-top:clamp(5px,1.3dvh,12px);font-size:clamp(14.5px,1.8dvh,16.5px);line-height:1.4;color:rgba(255,255,255,0.58);max-width:290px}
   .auth-copy b, .resend{color:var(--yellow);font-weight:600}
 
@@ -170,6 +170,33 @@
   .caret{display:inline-block;width:2px;height:26px;background:var(--yellow);margin-left:3px;animation:caret 1s steps(1) infinite}
   .demo-hint{margin-top:clamp(6px,1.6dvh,16px);font-size:14.5px;color:rgba(255,255,255,0.4)}
   .form-error{margin-top:clamp(6px,1.6dvh,16px);font-size:14px;color:#ff9b9b;min-height:1px}
+
+  /* ---- login: registration number + password ---- */
+  #screen-auth{overflow-y:auto}
+  .login-form{margin-top:clamp(14px,4dvh,34px);display:flex;flex-direction:column;gap:clamp(14px,2.6dvh,22px)}
+  .login-field{display:block}
+  .login-label{display:block;font-size:14px;font-weight:600;color:rgba(255,255,255,0.6);margin-bottom:4px}
+  .login-input{
+    display:block;width:100%;height:50px;padding:0;border:0;border-radius:0;outline:none;background:transparent;
+    border-bottom:1.5px solid rgba(246,237,7,0.55);color:#fff;
+    font-family:'Bricolage Grotesque',sans-serif;font-size:24px;font-weight:600;letter-spacing:.02em;
+    transition:border-color .15s;
+  }
+  .login-input::placeholder{color:rgba(255,255,255,0.28);font-size:19px;font-weight:500;letter-spacing:0}
+  .login-input:focus{border-bottom-color:var(--yellow)}
+  .login-pass{position:relative}
+  .login-pass .login-input{padding-right:46px}
+  .login-eye{
+    position:absolute;right:0;top:50%;transform:translateY(-50%);width:42px;height:42px;border:0;background:transparent;
+    color:rgba(255,255,255,0.6);display:flex;align-items:center;justify-content:center;cursor:pointer;
+  }
+  .login-eye svg{width:22px;height:22px}
+  .login-eye.on{color:var(--yellow)}
+  .login-note{font-size:14px;line-height:1.45;color:rgba(255,255,255,0.55)}
+  button.cta{width:100%;border:0;font-family:'Inter',sans-serif;cursor:pointer}
+  button.cta:disabled{opacity:.6;cursor:default}
+  .login-help{margin-top:18px;padding-bottom:24px;font-size:15px;color:rgba(255,255,255,0.6)}
+  .login-help span{color:var(--yellow);font-weight:600;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
   .lang-options{padding:0 24px;display:flex;flex-direction:column;gap:14px;flex:none}
   .lang-option{
     height:68px;border-radius:16px;background:rgba(255,255,255,0.08);border:1.5px solid rgba(255,255,255,0.16);
@@ -835,36 +862,29 @@
         <img class="pig-sm" src="data:image/png;base64,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" alt="">
         <div class="coin-sm"><svg viewBox="0 0 100 100"><use href="#coin-icon"></use></svg></div>
       </div>
-      <div class="auth-heading">What's your<br>mobile number?</div>
-      <div class="auth-copy">We'll send a 4-digit code. The same number your collection agent has on file.</div>
-      <div class="phone-row">
-        <div class="phone-code">+91</div>
-        <div class="phone-value"><span id="phoneDisplay"></span><span class="caret"></span></div>
-      </div>
-      <div class="form-error" id="authError"></div>
+      <div class="auth-heading">Log in to<br>your account</div>
+      <div class="auth-copy">Use the registration number you were given when you joined.</div>
+      <form class="login-form" id="loginForm" novalidate>
+        <label class="login-field">
+          <span class="login-label">Registration number</span>
+          <input class="login-input" id="regInput" name="username" type="text" autocomplete="username"
+                 autocapitalize="characters" autocorrect="off" spellcheck="false" placeholder="Enter registration number">
+        </label>
+        <label class="login-field">
+          <span class="login-label">Password</span>
+          <div class="login-pass">
+            <input class="login-input" id="passInput" name="password" type="password" autocomplete="current-password" placeholder="Enter password">
+            <button type="button" class="login-eye" id="togglePass" aria-label="Show password">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 12S5.5 4.5 12 4.5 22.5 12 22.5 12 18.5 19.5 12 19.5 1.5 12 1.5 12z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+        </label>
+        <div class="login-note">First time logging in? The password you enter now will be saved, and you will use the same one every time after this.</div>
+        <div class="form-error" id="authError"></div>
+        <button type="submit" class="cta" id="loginBtn">Log in</button>
+      </form>
+      <div class="login-help">No registration number? <span id="loginContact">Contact us</span></div>
     </div>
-    <div class="auth-spacer"></div>
-    <div class="keypad" id="authKeypad"></div>
-    <div class="cta-row">
-      <div class="cta" id="sendOtpBtn">Send OTP</div>
-    </div>
-  </section>
-
-  <!-- ============ OTP ============ -->
-  <section id="screen-otp" class="screen">
-    <div class="auth-top">
-      <div class="back-link" id="backToAuth">&larr; Change number</div>
-      <div class="auth-heading">Enter the code</div>
-      <div class="auth-copy">Sent to +91 <span id="otpPhoneEcho"></span> &middot; <span class="resend">Resend in 0:24</span></div>
-      <div class="otp-row" id="otpRow"></div>
-      <div class="verifying" id="verifyingRow">
-        <div class="spinner"></div><span>Verifying&hellip;</span>
-      </div>
-      <div class="form-error" id="otpError"></div>
-    </div>
-    <div class="auth-spacer"></div>
-    <div class="keypad" id="otpKeypad"></div>
-    <div style="height:24px;flex:none"></div>
   </section>
 
   <!-- ============ LANGUAGE CHOICE ============ -->
@@ -956,19 +976,15 @@
 
       <div class="section">
         <div class="section-title">About Us</div>
-        <div class="section-body">Gullak has been helping everyday savers grow their money since 2015. We started with a simple idea &mdash; that saving small amounts daily, with someone you trust, can change lives. Today, families across India trust Gullak with their daily, monthly, and one-time savings, backed by transparent practices and a network of local collection agents you can meet face to face.</div>
+        <div class="section-body">Gullak has been helping everyday savers grow their money since 2019. We started with a simple idea &mdash; that saving small amounts daily, with someone you trust, can change lives. Today, families across India trust Gullak with their daily, monthly, and one-time savings, backed by transparent practices and a network of local collection agents you can meet face to face.</div>
         <div class="about-stats">
           <div class="about-stat">
-            <div class="about-stat-num">2015</div>
+            <div class="about-stat-num">2019</div>
             <div class="about-stat-label">Founded</div>
           </div>
           <div class="about-stat">
-            <div class="about-stat-num">50,000+</div>
+            <div class="about-stat-num">15,000+</div>
             <div class="about-stat-label">Active savers</div>
-          </div>
-          <div class="about-stat">
-            <div class="about-stat-num">120+</div>
-            <div class="about-stat-label">Cities served</div>
           </div>
         </div>
       </div>
@@ -1635,7 +1651,7 @@
   var walletUnlocked = false;
 
   var screens = {
-    splash:'screen-splash', auth:'screen-auth', otp:'screen-otp', language:'screen-language',
+    splash:'screen-splash', auth:'screen-auth', language:'screen-language',
     front:'screen-front', home:'screen-home', plans:'screen-plans',
     calculator:'screen-calculator', wallet:'screen-wallet', receipts:'screen-receipts',
     planDetail:'screen-plan-detail', walletOtp:'screen-wallet-otp'
@@ -1664,7 +1680,6 @@
     // instead of asking again, same as any normal site.
     apiFetch('/api/auth/me').then(function(data){
       phone = String(data.phone || '').slice(-10);
-      renderPhone();
       isRegisteredCustomer = !!data.isRegisteredCustomer;
       walletUnlocked = !!data.walletUnlocked;
       show('front');
@@ -1803,7 +1818,9 @@
       isRegisteredCustomer = false;
       walletUnlocked = false;
       phone = '';
-      otp = '';
+      regInput.value = '';
+      passInput.value = '';
+      updateLoginReady();
       show('auth');
     });
   });
@@ -2690,14 +2707,10 @@
 
   var ERASE_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 5.5h10a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-10L3.7 12.7a1 1 0 0 1 0-1.4L9.5 5.5z"/><line x1="12" y1="9.5" x2="16.5" y2="14"/><line x1="16.5" y1="9.5" x2="12" y2="14"/></svg>';
 
-  // ---------- phone entry ----------
+  // ---------- login: registration number + password ----------
+  // The customer's phone number on file comes back from the server after
+  // login. It is only used to say where the My Wallet code is being sent.
   var phone = '';
-  function renderPhone(){
-    var formatted = phone.replace(/(\d{5})(\d+)/, '$1 $2');
-    document.getElementById('phoneDisplay').textContent = formatted;
-    var ready = phone.length === 10;
-    document.getElementById('sendOtpBtn').classList.toggle('ready', ready);
-  }
   function buildKeypad(container, onKey){
     var layout = ['1','2','3','4','5','6','7','8','9','','0','ERASE'];
     container.innerHTML = '';
@@ -2717,76 +2730,61 @@
       container.appendChild(d);
     });
   }
-  buildKeypad(document.getElementById('authKeypad'), function(k){
-    if(k === 'ERASE') phone = phone.slice(0, -1);
-    else if(phone.length < 10) phone += k;
-    renderPhone();
-  });
-  document.getElementById('sendOtpBtn').addEventListener('click', function(){
-    if(phone.length !== 10) return;
-    document.getElementById('authError').textContent = '';
-    apiFetch('/api/auth/send-otp', { method:'POST', body: JSON.stringify({ phone: phone }) })
-      .then(function(){
-        otp = '';
-        document.getElementById('otpError').textContent = '';
-        document.getElementById('otpPhoneEcho').textContent = phone.replace(/(\d{5})(\d+)/, '$1 $2');
-        renderOtp();
-        show('otp');
+
+  var regInput = document.getElementById('regInput');
+  var passInput = document.getElementById('passInput');
+  var loginBtn = document.getElementById('loginBtn');
+  function updateLoginReady(){
+    loginBtn.classList.toggle('ready', regInput.value.trim().length > 0 && passInput.value.length > 0);
+  }
+  regInput.addEventListener('input', updateLoginReady);
+  passInput.addEventListener('input', updateLoginReady);
+
+  var passVisible = false;
+  function setPassVisible(v){
+    passVisible = v;
+    passInput.type = v ? 'text' : 'password';
+    var eye = document.getElementById('togglePass');
+    eye.setAttribute('aria-label', v ? 'Hide password' : 'Show password');
+    eye.classList.toggle('on', v);
+  }
+  document.getElementById('togglePass').addEventListener('click', function(){ setPassVisible(!passVisible); });
+
+  document.getElementById('loginForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    var errEl = document.getElementById('authError');
+    var reg = regInput.value.trim();
+    var pw = passInput.value;
+    errEl.textContent = '';
+    if(!reg || !pw){
+      errEl.textContent = 'Enter your registration number and password';
+      return;
+    }
+    loginBtn.disabled = true;
+    loginBtn.textContent = 'Logging in\u2026';
+    apiFetch('/api/auth/login', { method:'POST', body: JSON.stringify({ registrationNumber: reg, password: pw }) })
+      .then(function(data){
+        phone = String(data.phone || '').slice(-10);
+        isRegisteredCustomer = true;
+        walletUnlocked = false;
+        passInput.value = '';
+        setPassVisible(false);
+        updateLoginReady();
+        show('language');
       })
       .catch(function(err){
-        document.getElementById('authError').textContent = (err && err.data && err.data.error) || 'Could not send code, please try again';
+        errEl.textContent = (err && err.data && err.data.error) || 'Could not log in, please try again';
+      })
+      .then(function(){
+        loginBtn.disabled = false;
+        loginBtn.textContent = 'Log in';
       });
   });
-  document.getElementById('backToAuth').addEventListener('click', function(){
-    show('auth');
+  document.getElementById('loginContact').addEventListener('click', function(){
+    window.openInfoSheet('Contact Us');
   });
 
-  // ---------- otp entry ----------
-  var otp = '';
-  var otpCellsEl = [];
-  function buildOtpCells(){
-    var row = document.getElementById('otpRow');
-    row.innerHTML = '';
-    otpCellsEl = [];
-    for(var i=0;i<4;i++){
-      var c = document.createElement('div');
-      c.className = 'otp-cell';
-      row.appendChild(c);
-      otpCellsEl.push(c);
-    }
-  }
-  function renderOtp(){
-    for(var i=0;i<4;i++){
-      otpCellsEl[i].textContent = otp[i] || '';
-      otpCellsEl[i].classList.toggle('next', i === otp.length);
-    }
-  }
-  buildOtpCells();
-  buildKeypad(document.getElementById('otpKeypad'), function(k){
-    if(k === 'ERASE') otp = otp.slice(0, -1);
-    else if(otp.length < 4) otp += k;
-    renderOtp();
-    document.getElementById('otpError').textContent = '';
-    if(otp.length === 4){
-      document.getElementById('verifyingRow').classList.add('show');
-      apiFetch('/api/auth/verify-otp', { method:'POST', body: JSON.stringify({ phone: phone, code: otp }) })
-        .then(function(data){
-          document.getElementById('verifyingRow').classList.remove('show');
-          isRegisteredCustomer = !!data.isRegisteredCustomer;
-          walletUnlocked = false;
-          show('language');
-        })
-        .catch(function(err){
-          document.getElementById('verifyingRow').classList.remove('show');
-          otp = '';
-          renderOtp();
-          document.getElementById('otpError').textContent = (err && err.data && err.data.error) || 'Incorrect code, please try again';
-        });
-    }
-  });
-
-  // ---------- wallet OTP gate: separate keypad/state from the main
-  // login OTP above, shown only the first time My Wallet is opened ----------
+  // ---------- wallet OTP gate: shown the first time My Wallet is opened ----------
   var walletOtp = '';
   var walletOtpCellsEl = [];
   function buildWalletOtpCells(){
@@ -2841,7 +2839,6 @@
   document.getElementById('langHindiBtn').addEventListener('click', function(){ chooseLang('hi'); });
   document.getElementById('langEnglishBtn').addEventListener('click', function(){ chooseLang('en'); });
 
-  renderPhone();
   playSplash();
 })();
 </script>
