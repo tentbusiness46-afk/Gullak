@@ -441,6 +441,11 @@ a{color:inherit}
         </select>
       </div>
       <div>
+        <div class="field-label">Duration</div>
+        <select class="field-input" id="nuDuration"></select>
+        <div class="field-error" id="nuDurationError">Please choose how long this plan runs</div>
+      </div>
+      <div>
         <div class="field-label" id="nuAmountLabel">Daily Deposit Amount (&#8377;)</div>
         <input class="field-input" type="number" id="nuAmount" placeholder="e.g. 200" min="1">
         <div class="field-error" id="nuAmountError">Please enter a valid amount</div>
@@ -506,6 +511,11 @@ a{color:inherit}
         </select>
       </div>
       <div>
+        <div class="field-label">Duration</div>
+        <select class="field-input" id="apDuration"></select>
+        <div class="field-error" id="apDurationError">Please choose how long this plan runs</div>
+      </div>
+      <div>
         <div class="field-label" id="apAmountLabel">Daily Deposit Amount (&#8377;)</div>
         <input class="field-input" type="number" id="apAmount" placeholder="e.g. 200" min="1">
         <div class="field-error" id="apAmountError">Please enter a valid amount</div>
@@ -547,15 +557,38 @@ a{color:inherit}
 
   var PLAN_LABELS = { daily: 'Daily Investment Plan', monthly: 'Monthly Investment Plan', fixed: 'Fixed Investment Plan' };
   var PLAN_UNIT = { daily: '/ day', monthly: '/ month', fixed: 'one-time' };
-  // Sensible defaults for the fields the simple "New User" form doesn't
-  // ask for (duration/rate) - matches the consumer app's published
-  // 12-month rates so a plan created here shows realistic numbers in
-  // the customer's wallet. Adjust here if the published rates change.
-  var PLAN_DEFAULTS = {
-    daily: { totalDays: 365, yearlyRate: 20 },
-    monthly: { tenureMonths: 12, offerRate: 18 },
-    fixed: { durationMonths: 12, offerRate: 45 }
+  // The durations a plan can be sold for, and the return each one pays -
+  // the same figures as the plan pages in the customer app (Daily has one
+  // rate; Monthly and Fixed use the 7th anniversary offer rate). If the
+  // published rates change, change them here too.
+  var PLAN_OPTIONS = {
+    daily:   [ { months: 3, rate: 4 }, { months: 6, rate: 9 }, { months: 12, rate: 20 }, { months: 24, rate: 45 } ],
+    monthly: [ { months: 12, rate: 18 }, { months: 18, rate: 30 }, { months: 24, rate: 45 } ],
+    fixed:   [ { months: 1, rate: 3 }, { months: 3, rate: 10 }, { months: 6, rate: 22 }, { months: 12, rate: 45 } ]
   };
+  function monthsLabel(m) { return m === 1 ? '1 Month' : m + ' Months'; }
+  function rateFor(plan, months) {
+    var list = PLAN_OPTIONS[plan] || [];
+    for (var i = 0; i < list.length; i++) if (list[i].months === Number(months)) return list[i].rate;
+    throw new Error('Please choose a duration for this plan');
+  }
+  // Starts on "Select duration" so a duration is always chosen on purpose,
+  // never left on whatever happens to be first in the list.
+  function fillDurationOptions(selectEl, plan) {
+    selectEl.innerHTML = '<option value="">Select duration</option>' +
+      (PLAN_OPTIONS[plan] || []).map(function (o) {
+        return '<option value="' + o.months + '">' + monthsLabel(o.months) + ' - ' + o.rate + '%</option>';
+      }).join('');
+  }
+  // "12 Months, 20% return" for a saved plan row (used on the customer's profile)
+  function planTermText(p) {
+    var months = null, rate = null;
+    if (p.type === 'daily') { months = p.daily_total_days ? Math.round(p.daily_total_days * 12 / 365) : null; rate = p.daily_yearly_rate; }
+    else if (p.type === 'monthly') { months = p.monthly_tenure_months; rate = p.monthly_offer_rate; }
+    else { months = p.fixed_duration_months; rate = p.fixed_offer_rate; }
+    if (!months) return '';
+    return ' &middot; ' + monthsLabel(months) + (rate != null ? ' &middot; ' + rate + '% return' : '');
+  }
   function formatINR(n) {
     n = Math.round(n);
     return '\u20B9' + n.toLocaleString('en-IN');
@@ -802,6 +835,7 @@ a{color:inherit}
   document.getElementById('openNewUserBtn').addEventListener('click', function () {
     fillAgentSelect();
     document.getElementById('newUserForm').reset();
+    fillDurationOptions(document.getElementById('nuDuration'), document.getElementById('nuPlan').value);
     document.getElementById('newUserError').classList.remove('show');
     Array.prototype.forEach.call(document.querySelectorAll('#newUserForm .field-input'), function (el) { el.classList.remove('input-error'); });
     Array.prototype.forEach.call(document.querySelectorAll('#newUserForm .field-error'), function (el) { el.classList.remove('show'); });
@@ -813,22 +847,26 @@ a{color:inherit}
   document.getElementById('nuPlan').addEventListener('change', function () {
     var labels = { daily: 'Daily Deposit Amount (&#8377;)', monthly: 'Monthly Deposit Amount (&#8377;)', fixed: 'One-time Investment Amount (&#8377;)' };
     document.getElementById('nuAmountLabel').innerHTML = labels[this.value];
+    fillDurationOptions(document.getElementById('nuDuration'), this.value);
   });
-  function planCreateBody(plan, amount) {
+  function planCreateBody(plan, amount, months) {
+    months = Number(months);
+    var rate = rateFor(plan, months);
     if (plan === 'daily') {
-      return { type: 'daily', dailyAmount: amount, dailyTotalDays: PLAN_DEFAULTS.daily.totalDays, dailyYearlyRate: PLAN_DEFAULTS.daily.yearlyRate };
+      // days follow the calendar, so 12 months = 365 days
+      return { type: 'daily', dailyAmount: amount, dailyTotalDays: Math.round(months * 365 / 12), dailyYearlyRate: rate };
     }
     if (plan === 'monthly') {
-      var tenure = PLAN_DEFAULTS.monthly.tenureMonths;
-      return { type: 'monthly', monthlyInstallment: amount, monthlyTotalAmount: amount * tenure, monthlyTenureMonths: tenure, monthlyOfferRate: PLAN_DEFAULTS.monthly.offerRate };
+      return { type: 'monthly', monthlyInstallment: amount, monthlyTotalAmount: amount * months, monthlyTenureMonths: months, monthlyOfferRate: rate };
     }
-    return { type: 'fixed', fixedAmount: amount, fixedDurationMonths: PLAN_DEFAULTS.fixed.durationMonths, fixedOfferRate: PLAN_DEFAULTS.fixed.offerRate };
+    return { type: 'fixed', fixedAmount: amount, fixedDurationMonths: months, fixedOfferRate: rate };
   }
   function doCreateUser() {
     var name = document.getElementById('nuName').value.trim();
     var phone = document.getElementById('nuPhone').value.trim();
     var accountNumber = document.getElementById('nuAccountNumber').value.trim();
     var plan = document.getElementById('nuPlan').value;
+    var months = document.getElementById('nuDuration').value;
     var amount = Number(document.getElementById('nuAmount').value);
     var agentId = document.getElementById('nuAgent').value;
     var errEl = document.getElementById('newUserError');
@@ -836,7 +874,7 @@ a{color:inherit}
 
     apiFetch('/admin/api/users', { method: 'POST', body: JSON.stringify({ name: name, phone: phone, accountNumber: accountNumber, agentId: agentId || null }) })
       .then(function (user) {
-        return apiFetch('/admin/api/users/' + user.id + '/plans', { method: 'POST', body: JSON.stringify(planCreateBody(plan, amount)) });
+        return apiFetch('/admin/api/users/' + user.id + '/plans', { method: 'POST', body: JSON.stringify(planCreateBody(plan, amount, months)) });
       })
       .then(function () {
         document.getElementById('newUserModal').classList.remove('open');
@@ -853,6 +891,7 @@ a{color:inherit}
     { input: document.getElementById('nuPhone'), error: document.getElementById('nuPhoneError'), validate: isValidPhone, message: 'Please enter a valid 10-digit phone number' },
     { input: document.getElementById('nuAccountNumber'), error: document.getElementById('nuAccountNumberError'), validate: function (v) { return v.length > 0; }, message: 'Please enter an account number' },
     { input: document.getElementById('nuPlan'), validate: function () { return true; } },
+    { input: document.getElementById('nuDuration'), error: document.getElementById('nuDurationError'), validate: function (v) { return !!v; }, message: 'Please choose how long this plan runs' },
     { input: document.getElementById('nuAmount'), error: document.getElementById('nuAmountError'), validate: function (v) { return Number(v) > 0; }, message: 'Please enter a valid amount' },
     { input: document.getElementById('nuAgent'), validate: function (v) { return !!v; } }
   ], doCreateUser);
@@ -909,23 +948,28 @@ a{color:inherit}
     Array.prototype.forEach.call(document.querySelectorAll('#addPlanForm .field-input'), function (el) { el.classList.remove('input-error'); });
     Array.prototype.forEach.call(document.querySelectorAll('#addPlanForm .field-error'), function (el) { el.classList.remove('show'); });
     updateAddPlanAmountLabel();
+    fillDurationOptions(document.getElementById('apDuration'), sel.value);
     document.getElementById('addPlanModal').classList.add('open');
   }
   function updateAddPlanAmountLabel() {
     var labels = { daily: 'Daily Deposit Amount (&#8377;)', monthly: 'Monthly Deposit Amount (&#8377;)', fixed: 'One-time Investment Amount (&#8377;)' };
     document.getElementById('apAmountLabel').innerHTML = labels[document.getElementById('apPlan').value] || labels.daily;
   }
-  document.getElementById('apPlan').addEventListener('change', updateAddPlanAmountLabel);
+  document.getElementById('apPlan').addEventListener('change', function () {
+    updateAddPlanAmountLabel();
+    fillDurationOptions(document.getElementById('apDuration'), this.value);
+  });
   document.getElementById('closeAddPlanModal').addEventListener('click', function () {
     document.getElementById('addPlanModal').classList.remove('open');
   });
   function doAddPlan() {
     var plan = document.getElementById('apPlan').value;
+    var months = document.getElementById('apDuration').value;
     var amount = Number(document.getElementById('apAmount').value);
     var errEl = document.getElementById('addPlanError');
     errEl.classList.remove('show');
 
-    apiFetch('/admin/api/users/' + currentProfileUserId + '/plans', { method: 'POST', body: JSON.stringify(planCreateBody(plan, amount)) })
+    apiFetch('/admin/api/users/' + currentProfileUserId + '/plans', { method: 'POST', body: JSON.stringify(planCreateBody(plan, amount, months)) })
       .then(function () {
         document.getElementById('addPlanModal').classList.remove('open');
         renderUserProfile(currentProfileUserId);
@@ -937,6 +981,7 @@ a{color:inherit}
   }
   setupFormFlow(document.getElementById('addPlanForm'), [
     { input: document.getElementById('apPlan'), validate: function () { return true; } },
+    { input: document.getElementById('apDuration'), error: document.getElementById('apDurationError'), validate: function (v) { return !!v; }, message: 'Please choose how long this plan runs' },
     { input: document.getElementById('apAmount'), error: document.getElementById('apAmountError'), validate: function (v) { return Number(v) > 0; }, message: 'Please enter a valid amount' }
   ], doAddPlan);
 
@@ -963,7 +1008,7 @@ a{color:inherit}
           : '<tr class="empty-row"><td colspan="3">' + (p.type === 'fixed' ? 'No collections for one-time plans.' : 'No collection history yet.') + '</td></tr>';
 
         return '<div class="db-section"><div class="db-section-title">' + PLAN_LABELS[p.type] +
-          ' &mdash; ' + formatINR(amount) + ' ' + PLAN_UNIT[p.type] + '</div>' +
+          ' &mdash; ' + formatINR(amount) + ' ' + PLAN_UNIT[p.type] + planTermText(p) + '</div>' +
           '<div class="table-wrap"><table class="data-table"><thead><tr><th>Date</th><th>Amount</th><th>Status</th></tr></thead>' +
           '<tbody>' + historyRows + '</tbody></table></div></div>';
       }).join('');
