@@ -4,10 +4,21 @@ const db = require('../db/client');
 const env = require('../config/env');
 const { signToken } = require('../utils/jwt');
 const { sendOtp, verifyOtp } = require('../utils/otp');
+const { hashPassword, comparePassword } = require('../utils/password');
 const { requireUser, COOKIE_NAMES } = require('../middleware/auth');
 const { asyncRoute } = require('../middleware/errorHandler');
 
 const router = express.Router();
+
+// Password guessing is the main risk of a password login, so attempts
+// are capped per IP. Wallet codes keep their own, separate cap.
+const loginLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many login attempts. Please try again in a few minutes.' }
+});
 
 const otpLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
@@ -26,40 +37,122 @@ function cookieOptions() {
   };
 }
 
-function isValidPhone(phone) {
-  return /^\d{10}$/.test(String(phone || ''));
+// Only customers who actually exist can be signed in now, so every
+// authenticated route needs a userId in the session. This also means
+// anyone still holding a session from the old phone-OTP login (which
+// allowed unregistered numbers) is asked to log in again.
+function requireRegistered(req, res, next) {
+  if (!req.auth || !req.auth.userId) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+  next();
 }
 
-// ---------- main app login (phone + OTP) ----------
-// Works for ANY 10-digit phone, registered customer or not - the app
-// itself (offers, calculator, plan info) is browsable by anyone. Only
-// /api/wallet checks whether the phone belongs to an actual customer.
+// ---------------------------------------------------------------
+// users.password_hash
+//
+// Added to the users table the first time it's needed, so there is no
+// separate migration to remember to run - existing databases (local or
+// Turso) get the column automatically, and new ones get it on the first
+// login attempt. Safe to run repeatedly.
+// ---------------------------------------------------------------
+let passwordColumnReady = null;
+function ensurePasswordColumn() {
+  if (!passwordColumnReady) {
+    passwordColumnReady = (async () => {
+      const info = await db.execute('PRAGMA table_info(users)');
+      const hasColumn = info.rows.some((r) => r.name === 'password_hash');
+      if (!hasColumn) {
+        try {
+          await db.execute('ALTER TABLE users ADD COLUMN password_hash TEXT');
+        } catch (err) {
+          // another server instance added it a moment earlier
+          if (!/duplicate column/i.test(String(err && err.message))) throw err;
+        }
+      }
+    })().catch((err) => {
+      passwordColumnReady = null; // try again on the next request
+      throw err;
+    });
+  }
+  return passwordColumnReady;
+}
 
-router.post('/auth/send-otp', otpLimiter, asyncRoute(async (req, res) => {
-  const { phone } = req.body || {};
-  if (!isValidPhone(phone)) return res.status(400).json({ error: 'Enter a valid 10-digit phone number' });
+// Registration numbers are whatever the admin typed when creating the
+// customer, so match without caring about upper/lower case - but if two
+// numbers differ only by case, the exact match wins.
+async function findUserByRegistrationNumber(registrationNumber) {
+  const result = await db.execute({
+    sql: 'SELECT * FROM users WHERE LOWER(account_number) = LOWER(?)',
+    args: [registrationNumber]
+  });
+  const rows = result.rows;
+  if (!rows.length) return null;
+  const exact = rows.find((r) => r.account_number === registrationNumber);
+  if (exact) return exact;
+  return rows.length === 1 ? rows[0] : null;
+}
 
-  await sendOtp(phone, 'login');
-  res.json({ sent: true });
-}));
+const MIN_PASSWORD_LENGTH = 6;
+const MAX_PASSWORD_LENGTH = 72; // bcrypt only reads the first 72 bytes
 
-router.post('/auth/verify-otp', asyncRoute(async (req, res) => {
-  const { phone, code } = req.body || {};
-  if (!isValidPhone(phone)) return res.status(400).json({ error: 'Enter a valid 10-digit phone number' });
+// ---------- login: registration number + password ----------
+//
+// First login for a registration number: whatever password is entered
+// is hashed and saved. Every login after that is checked against it.
+router.post('/auth/login', loginLimiter, asyncRoute(async (req, res) => {
+  const registrationNumber = String((req.body && req.body.registrationNumber) || '').trim();
+  const password = String((req.body && req.body.password) || '');
 
-  const ok = await verifyOtp(phone, code, 'login');
-  if (!ok) return res.status(401).json({ error: 'Incorrect or expired code' });
+  if (!registrationNumber || !password) {
+    return res.status(400).json({ error: 'Enter your registration number and password' });
+  }
+  if (password.length > MAX_PASSWORD_LENGTH) {
+    return res.status(400).json({ error: 'Password can be at most ' + MAX_PASSWORD_LENGTH + ' characters' });
+  }
 
-  const userResult = await db.execute({ sql: 'SELECT id, name FROM users WHERE phone = ?', args: [phone] });
-  const user = userResult.rows[0] || null;
+  await ensurePasswordColumn();
+
+  const user = await findUserByRegistrationNumber(registrationNumber);
+  const genericFailure = { error: 'Incorrect registration number or password' };
+  if (!user) return res.status(401).json(genericFailure);
+
+  let firstLogin = false;
+
+  if (!user.password_hash) {
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      return res.status(400).json({
+        error: 'Choose a password with at least ' + MIN_PASSWORD_LENGTH + ' characters. It will be saved for your next logins.'
+      });
+    }
+    const hash = await hashPassword(password);
+    // The IS NULL guard means that if two first logins arrive at the same
+    // moment, only one password is saved; the other is checked against it.
+    const saved = await db.execute({
+      sql: "UPDATE users SET password_hash = ? WHERE id = ? AND (password_hash IS NULL OR password_hash = '')",
+      args: [hash, user.id]
+    });
+    if (saved.rowsAffected === 1) {
+      firstLogin = true;
+    } else {
+      const fresh = await db.execute({ sql: 'SELECT password_hash FROM users WHERE id = ?', args: [user.id] });
+      const storedHash = fresh.rows[0] && fresh.rows[0].password_hash;
+      if (!storedHash || !(await comparePassword(password, storedHash))) {
+        return res.status(401).json(genericFailure);
+      }
+    }
+  } else {
+    const ok = await comparePassword(password, user.password_hash);
+    if (!ok) return res.status(401).json(genericFailure);
+  }
 
   const token = signToken('user', {
-    phone,
-    userId: user ? user.id : null,
+    phone: user.phone,
+    userId: user.id,
     walletUnlocked: false
   });
   res.cookie(COOKIE_NAMES.user, token, cookieOptions());
-  res.json({ phone, isRegisteredCustomer: !!user });
+  res.json({ phone: user.phone, firstLogin });
 }));
 
 router.post('/auth/logout', (req, res) => {
@@ -67,22 +160,24 @@ router.post('/auth/logout', (req, res) => {
   res.json({ ok: true });
 });
 
-router.get('/auth/me', requireUser, (req, res) => {
+router.get('/auth/me', requireUser, requireRegistered, (req, res) => {
   res.json({
     phone: req.auth.phone,
-    isRegisteredCustomer: !!req.auth.userId,
+    isRegisteredCustomer: true,
     walletUnlocked: !!req.auth.walletUnlocked
   });
 });
 
-// ---------- wallet OTP gate (second factor, once per session) ----------
+// ---------- wallet OTP gate (second step, once per session) ----------
+// Unchanged: the code goes to the phone number on file for the customer
+// who just logged in.
 
-router.post('/wallet/send-otp', requireUser, otpLimiter, asyncRoute(async (req, res) => {
+router.post('/wallet/send-otp', requireUser, requireRegistered, otpLimiter, asyncRoute(async (req, res) => {
   await sendOtp(req.auth.phone, 'wallet');
   res.json({ sent: true });
 }));
 
-router.post('/wallet/verify-otp', requireUser, asyncRoute(async (req, res) => {
+router.post('/wallet/verify-otp', requireUser, requireRegistered, asyncRoute(async (req, res) => {
   const { code } = req.body || {};
   const ok = await verifyOtp(req.auth.phone, code, 'wallet');
   if (!ok) return res.status(401).json({ error: 'Incorrect or expired code' });
@@ -151,15 +246,9 @@ function buildFixedView(p) {
   };
 }
 
-router.get('/wallet', requireUser, asyncRoute(async (req, res) => {
+router.get('/wallet', requireUser, requireRegistered, asyncRoute(async (req, res) => {
   if (!req.auth.walletUnlocked) {
     return res.status(401).json({ error: 'Wallet OTP verification required' });
-  }
-
-  if (!req.auth.userId) {
-    // Phone isn't linked to a customer record yet - matches the "new
-    // user, blank wallet, call admin to get set up" flow.
-    return res.json({ hasActivePlans: false, profile: null, plans: [] });
   }
 
   const userResult = await db.execute({ sql: 'SELECT * FROM users WHERE id = ?', args: [req.auth.userId] });
@@ -208,7 +297,7 @@ router.get('/wallet', requireUser, asyncRoute(async (req, res) => {
 
 // Collection history for a single (daily) plan - powers the receipts
 // calendar screen.
-router.get('/wallet/receipts/:planId', requireUser, asyncRoute(async (req, res) => {
+router.get('/wallet/receipts/:planId', requireUser, requireRegistered, asyncRoute(async (req, res) => {
   if (!req.auth.walletUnlocked) {
     return res.status(401).json({ error: 'Wallet OTP verification required' });
   }
